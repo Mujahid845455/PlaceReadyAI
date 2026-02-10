@@ -59,6 +59,9 @@ export default function HistoryPage() {
     hoursSpent: 6.5
   };
 
+  // Create a reversed copy for chronological display (oldest to newest)
+  const reversedInterviews = [...interviews].reverse();
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
@@ -106,23 +109,41 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        {/* Progress Chart Placeholder */}
+        {/* Progress Chart */}
         <div className="bg-white rounded-xl p-8 mb-8 border border-gray-200">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Score Progress Over Time</h2>
-          <div className="h-64 flex items-end justify-between space-x-2">
-            {interviews.reverse().map((interview, idx) => (
-              <div key={idx} className="flex-1 flex flex-col items-center">
-                <div 
-                  className="w-full bg-gradient-to-t from-blue-600 to-purple-600 rounded-t-lg transition-all hover:opacity-80"
-                  style={{ height: `${(interview.score / 100) * 100}%` }}
-                />
-                <div className="text-xs text-gray-600 mt-2">{interview.score}</div>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between mt-4 text-xs text-gray-500">
-            <span>Jan 27</span>
-            <span>Feb 8</span>
+          <div className="relative h-64">
+            {/* Y-axis labels */}
+            <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-500 pr-2">
+              <span>100</span>
+              <span>75</span>
+              <span>50</span>
+              <span>25</span>
+              <span>0</span>
+            </div>
+            
+            {/* Chart area */}
+            <div className="ml-8 h-full flex items-end justify-between space-x-2 border-l border-b border-gray-200 pl-4 pb-4">
+              {reversedInterviews.map((interview, idx) => (
+                <div key={idx} className="flex-1 flex flex-col items-center h-full justify-end group">
+                  <div className="relative w-full">
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      Score: {interview.score}
+                      <div className="text-gray-300">{interview.date}</div>
+                    </div>
+                    {/* Bar */}
+                    <div 
+                      className="w-full bg-gradient-to-t from-blue-600 to-purple-600 rounded-t-lg transition-all hover:opacity-80 cursor-pointer"
+                      style={{ height: `${(interview.score / 100) * 240}px` }}
+                    />
+                  </div>
+                  <div className="text-xs text-gray-600 mt-2 transform -rotate-45 origin-top-left">
+                    {interview.date.split(' ')[0]} {interview.date.split(' ')[1]}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -132,7 +153,7 @@ export default function HistoryPage() {
             <h2 className="text-xl font-bold text-gray-900">Recent Interviews</h2>
           </div>
           <div className="divide-y divide-gray-200">
-            {interviews.reverse().map((interview) => (
+            {reversedInterviews.map((interview) => (
               <div key={interview.id} className="p-6 hover:bg-gray-50 transition">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">

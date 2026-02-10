@@ -30,7 +30,61 @@ export default function UploadPage() {
 
   const handleAnalyze = () => {
     if (!repoUrl) return;
-    
+
+    // Validate URL format
+    try {
+      const url = new URL(repoUrl);
+
+      // Check for HTTPS protocol
+      if (!url.protocol.startsWith('http')) {
+        alert('Please enter a valid HTTPS URL');
+        return;
+      }
+
+      // Check if it's from supported platforms
+      const isGitHub = url.hostname === 'github.com';
+      const isGitLab = url.hostname === 'gitlab.com';
+      const isBitbucket = url.hostname === 'bitbucket.org';
+
+      if (!isGitHub && !isGitLab && !isBitbucket) {
+        alert('Please enter a valid GitHub, GitLab, or Bitbucket URL');
+        return;
+      }
+
+      // Validate repository path structure (should be /username/repository or /username/repository.git)
+      const pathParts = url.pathname.split('/').filter(part => part.length > 0);
+
+      // Check if path has at least username and repository
+      if (pathParts.length < 2) {
+        if (isGitHub) {
+          alert('Please enter a complete repository URL (e.g., https://github.com/username/repository)');
+        } else if (isGitLab) {
+          alert('Please enter a complete repository URL (e.g., https://gitlab.com/username/repository)');
+        } else {
+          alert('Please enter a complete repository URL (e.g., https://bitbucket.org/username/repository)');
+        }
+        return;
+      }
+
+      // Additional validation: ensure it's not just a profile or organization page
+      const repoName = pathParts[1].replace('.git', '');
+      if (!repoName || repoName.length === 0) {
+        alert('Invalid repository name. Please enter a valid repository URL.');
+        return;
+      }
+
+      // Check for invalid characters in repository path
+      const validPathRegex = /^[a-zA-Z0-9._-]+$/;
+      if (!validPathRegex.test(pathParts[0]) || !validPathRegex.test(repoName)) {
+        alert('Repository URL contains invalid characters. Please check and try again.');
+        return;
+      }
+
+    } catch (e) {
+      alert('Please enter a valid URL (e.g., https://github.com/username/repository)');
+      return;
+    }
+
     setIsAnalyzing(true);
     // Simulate API call
     setTimeout(() => {
@@ -114,10 +168,12 @@ export default function UploadPage() {
                   </label>
                   <div className="flex gap-3">
                     <input
-                      type="text"
+                      type="url"
                       value={repoUrl}
                       onChange={(e) => setRepoUrl(e.target.value)}
                       placeholder="https://github.com/username/repository"
+                      pattern="https://.*"
+                      title="Please enter a valid HTTPS URL"
                       className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                     <button
@@ -164,7 +220,7 @@ export default function UploadPage() {
                 <div className="text-sm text-blue-900">
                   <div className="font-semibold mb-1">Your code is safe with us</div>
                   <div className="text-blue-700">
-                    We analyze your code securely and never store it permanently. 
+                    We analyze your code securely and never store it permanently.
                     All analysis happens in an encrypted environment.
                   </div>
                 </div>
@@ -206,7 +262,7 @@ export default function UploadPage() {
                 <span className="text-3xl font-bold text-blue-600">{analysisData.codeQuality}/100</span>
               </div>
               <div className="bg-gray-200 rounded-full h-3">
-                <div 
+                <div
                   className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-full h-3 transition-all duration-1000"
                   style={{ width: `${analysisData.codeQuality}%` }}
                 />
@@ -256,7 +312,7 @@ export default function UploadPage() {
 
             {/* Action Buttons */}
             <div className="flex gap-4">
-              <Link 
+              <Link
                 href="/dashboard/interview"
                 className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition text-center font-semibold"
               >

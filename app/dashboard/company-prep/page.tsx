@@ -198,9 +198,12 @@ export default function CompanyPrepPage() {
               >
                 Start Preparation
               </Link>
-              <button className="bg-purple-600 text-white px-6 py-4 rounded-lg hover:bg-purple-700 transition font-semibold">
+              <Link
+                href={`/dashboard/practice?company=${selectedCompany}`}
+                className="bg-purple-600 text-white px-6 py-4 rounded-lg hover:bg-purple-700 transition font-semibold text-center"
+              >
                 View All Questions
-              </button>
+              </Link>
             </div>
           </div>
         )}
