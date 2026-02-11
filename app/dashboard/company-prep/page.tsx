@@ -16,7 +16,7 @@ export default function CompanyPrepPage() {
     { id: 'infosys', name: 'Infosys', logo: '🟣', matchScore: 82, questions: 40 },
   ];
 
-  const companyDetails = {
+  const companyDetails: Record<string, any> = {
     amazon: {
       rounds: [
         'Online Assessment (Coding)',
@@ -36,8 +36,111 @@ export default function CompanyPrepPage() {
         'Tell me about a time you failed',
         'Explain your most complex project'
       ]
+    },
+    google: {
+      rounds: [
+        'Phone Screen (General Coding)',
+        'Onsite 1: Coding + DSA',
+        'Onsite 2: Coding + DSA (More complex)',
+        'Googleyness & Leadership',
+        'System Design / Role-related'
+      ],
+      topics: [
+        'Advanced Data Structures',
+        'Complex Algorithms (Graphs, DP)',
+        'System Design (Global SCALE)',
+        'Google\'s Coding Standards'
+      ],
+      sampleQuestions: [
+        'How would you design a search engine?',
+        'Find the shortest path in a dynamic graph',
+        'Implement a rate limiter for 1 billion users',
+        'Conflict resolution in distributed systems'
+      ]
+    },
+    microsoft: {
+      rounds: [
+        'Initial Technical Interview',
+        'Hardware/Software Design (Role specific)',
+        'Core Coding Round',
+        'As Appropriate (Managerial Round)'
+      ],
+      topics: [
+        'Bit Manipulation & Low Level',
+        'Operating Systems Concepts',
+        'Application Architecture',
+        'Testing & Debugging'
+      ],
+      sampleQuestions: [
+        'Reverse words in a string efficiently',
+        'Detect cycle in a linked list',
+        'Explain virtual memory management',
+        'Design a system for file synchronization'
+      ]
+    },
+    flipkart: {
+      rounds: [
+        'Machine Coding Round (Design + Code)',
+        'Problem Solving Round (DSA)',
+        'Hiring Manager Round',
+        'Final Culture Fit'
+      ],
+      topics: [
+        'Low-Level Design (LLD)',
+        'Design Patterns',
+        'Data Modeling',
+        'Object Oriented Programming'
+      ],
+      sampleQuestions: [
+        'Implement a cab booking application (LLD)',
+        'Snake and Ladder game simulation',
+        'Implement a parking lot system',
+        'Design a logging library'
+      ]
+    },
+    tcs: {
+      rounds: [
+        'TCS NQT (Aptitude + Coding)',
+        'Technical Interview',
+        'Managerial Interview',
+        'HR Round'
+      ],
+      topics: [
+        'Basic Programming (C++, Java, Python)',
+        'SQL & Database Management',
+        'OOPS Concepts',
+        'Project Explanation'
+      ],
+      sampleQuestions: [
+        'Find Fibonacci series up to N',
+        'Explain normalization in DBMS',
+        'Difference between overloading and overriding',
+        'Write a query to find Nth highest salary'
+      ]
+    },
+    infosys: {
+      rounds: [
+        'InfyTQ / HackWithInfy (OA)',
+        'Technical Interview (Single/Double)',
+        'HR Round'
+      ],
+      topics: [
+        'String & Array Manipulation',
+        'Data Structures Basics',
+        'Web Technologies (HTML/CSS/JS)',
+        'Java/Python Core'
+      ],
+      sampleQuestions: [
+        'Check if a string is a palindrome',
+        'Find duplicates in an array',
+        'Explain SDLC models',
+        'Write a program for Prime Numbers'
+      ]
     }
   };
+
+  const selectedCompanyInfo = companies.find(c => c.id === selectedCompany);
+  const selectedDetails = companyDetails[selectedCompany];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -136,15 +239,15 @@ export default function CompanyPrepPage() {
             <div className="bg-white rounded-xl p-4 sm:p-8 border border-gray-200">
               <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-4 sm:gap-0">
                 <div className="flex items-center space-x-4">
-                  <div className="text-5xl sm:text-6xl text-center">🟠</div>
+                  <div className="text-5xl sm:text-6xl text-center">{selectedCompanyInfo?.logo}</div>
                   <div>
-                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Amazon</h2>
-                    <p className="text-sm sm:text-base text-gray-600 mt-1">Prepare for Amazon interviews</p>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">{selectedCompanyInfo?.name}</h2>
+                    <p className="text-sm sm:text-base text-gray-600 mt-1">Prepare for {selectedCompanyInfo?.name} interviews</p>
                   </div>
                 </div>
                 <div className="text-center sm:text-right">
                   <div className="text-xs sm:text-sm text-gray-600">Your Match Score</div>
-                  <div className="text-3xl sm:text-4xl font-bold text-blue-600">72/100</div>
+                  <div className="text-3xl sm:text-4xl font-bold text-blue-600">{selectedCompanyInfo?.matchScore}/100</div>
                 </div>
               </div>
             </div>
@@ -153,7 +256,7 @@ export default function CompanyPrepPage() {
             <div className="bg-white rounded-xl p-4 sm:p-8 border border-gray-200">
               <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Interview Rounds</h3>
               <div className="space-y-3">
-                {companyDetails.amazon.rounds.map((round, idx) => (
+                {selectedDetails?.rounds.map((round: string, idx: number) => (
                   <div key={idx} className="flex items-center space-x-3 p-3 sm:p-4 bg-gray-50 rounded-lg text-sm sm:text-base">
                     <div className="bg-blue-600 text-white w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0 text-xs sm:text-base">
                       {idx + 1}
@@ -170,7 +273,7 @@ export default function CompanyPrepPage() {
             <div className="bg-white rounded-xl p-4 sm:p-8 border border-gray-200">
               <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Common Topics</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {companyDetails.amazon.topics.map((topic, idx) => (
+                {selectedDetails?.topics.map((topic: string, idx: number) => (
                   <div key={idx} className="flex items-center space-x-3 p-3 sm:p-4 bg-blue-50 rounded-lg text-sm sm:text-base">
                     <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
                     <span className="text-gray-900">{topic}</span>
@@ -183,7 +286,7 @@ export default function CompanyPrepPage() {
             <div className="bg-white rounded-xl p-4 sm:p-8 border border-gray-200">
               <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Previous Questions</h3>
               <div className="space-y-3">
-                {companyDetails.amazon.sampleQuestions.map((question, idx) => (
+                {selectedDetails?.sampleQuestions.map((question: string, idx: number) => (
                   <div key={idx} className="p-3 sm:p-4 bg-purple-50 rounded-lg border border-purple-200 text-sm sm:text-base text-center sm:text-left">
                     <div className="font-semibold text-purple-900">"{question}"</div>
                   </div>
