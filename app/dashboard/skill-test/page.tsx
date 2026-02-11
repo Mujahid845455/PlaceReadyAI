@@ -6,9 +6,6 @@ import { Shield, Code, ArrowLeft, Play, CheckCircle, XCircle, Clock, Send, Spark
 import Editor from "@monaco-editor/react";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "");
-
 const starterTemplates: Record<string, { code: string; language: string; challenge: string }> = {
   react: {
     language: 'javascript',
@@ -182,13 +179,22 @@ export default function SkillTestPage() {
   };
 
   const evaluateWithAI = async () => {
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+
+    if (!apiKey) {
+      alert("Missing Gemini API Key! Please check your .env.local file and RESTART your server (npm run dev).");
+      return;
+    }
+
     if (!code || isEvaluating) return;
 
     setIsEvaluating(true);
     setAiResult(null);
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const genAI = new GoogleGenerativeAI(apiKey);
+      // 'gemini-1.5-flash-latest' often resolves 404 issues better than the alias.
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
       const prompt = `
         You are an elite technical interviewer. Evaluate the following coding challenge submission.
         
@@ -224,8 +230,8 @@ export default function SkillTestPage() {
       const parsedRes = JSON.parse(cleanedJson);
       setAiResult(parsedRes);
     } catch (error) {
-      console.error("AI Evaluation Error:", error);
-      alert("AI failed to evaluate code. Please check your internet or API key.");
+      console.error("Gemini AI Evaluation Error Details:", error);
+      alert("AI Evaluation failed. Please open your Browser Console (Press F12) to see the exact error message.");
     } finally {
       setIsEvaluating(false);
     }
