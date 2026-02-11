@@ -831,17 +831,18 @@ CREATE INDEX idx_student_email ON Students(email);`,
     return (
       <div className="min-h-screen bg-gray-50">
         <nav className="bg-white border-b sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <Link href="/dashboard" className="flex items-center space-x-2">
-                <Shield className="h-8 w-8 text-blue-600" />
-                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-14 sm:h-16">
+              <Link href="/dashboard" className="flex items-center space-x-1 sm:space-x-2">
+                <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+                <span className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   PlaceReady AI
                 </span>
               </Link>
-              <Link href="/dashboard/company-prep" className="flex items-center text-gray-600 hover:text-blue-600 transition">
-                <ArrowLeft className="h-5 w-5 mr-2" />
-                Back to Companies
+              <Link href="/dashboard/company-prep" className="flex items-center text-gray-600 hover:text-blue-600 transition text-sm sm:text-base">
+                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Back to Companies</span>
+                <span className="sm:hidden">Back</span>
               </Link>
             </div>
           </div>
@@ -866,30 +867,31 @@ CREATE INDEX idx_student_email ON Students(email);`,
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
       <nav className="bg-white border-b sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/dashboard" className="flex items-center space-x-2">
-              <Shield className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-14 sm:h-16">
+            <Link href="/dashboard" className="flex items-center space-x-1 sm:space-x-2">
+              <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+              <span className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 PlaceReady AI
               </span>
             </Link>
-            <Link href="/dashboard/company-prep" className="flex items-center text-gray-600 hover:text-blue-600 transition">
-              <ArrowLeft className="h-5 w-5 mr-2" />
-              Back to Companies
+            <Link href="/dashboard/company-prep" className="flex items-center text-gray-600 hover:text-blue-600 transition text-sm sm:text-base">
+              <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Back to Companies</span>
+              <span className="sm:hidden">Back</span>
             </Link>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="text-6xl">{currentCompany.logo}</div>
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-3 sm:space-y-0 mb-4 sm:mb-6">
+            <div className="text-4xl sm:text-6xl">{currentCompany.logo}</div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{currentCompany.name} Interview Questions with Solutions</h1>
-              <p className="text-gray-600">Comprehensive preparation guide with code solutions</p>
+              <h1 className="text-xl sm:text-3xl font-bold text-gray-900">{currentCompany.name} Interview Questions</h1>
+              <p className="text-sm sm:text-base text-gray-600">Comprehensive preparation guide with code solutions</p>
             </div>
           </div>
         </div>
@@ -900,38 +902,38 @@ CREATE INDEX idx_student_email ON Students(email);`,
             <div key={section.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               <button
                 onClick={() => toggleSection(section.id)}
-                className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition"
+                className="w-full p-4 sm:p-6 flex items-center justify-between hover:bg-gray-50 transition"
               >
-                <div className="flex items-center space-x-3">
-                  <BookOpen className="h-6 w-6 text-blue-600" />
-                  <h2 className="text-xl font-bold text-gray-900">{section.title}</h2>
+                <div className="flex items-center space-x-2 sm:space-x-3">
+                  <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                  <h2 className="text-base sm:text-xl font-bold text-gray-900 text-left">{section.title}</h2>
                 </div>
                 {expandedSections[section.id] ? (
-                  <ChevronUp className="h-6 w-6 text-gray-400" />
+                  <ChevronUp className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400" />
                 ) : (
-                  <ChevronDown className="h-6 w-6 text-gray-400" />
+                  <ChevronDown className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400" />
                 )}
               </button>
 
               {expandedSections[section.id] && (
-                <div className="p-6 pt-0 space-y-6">
+                <div className="p-4 sm:p-6 pt-0 space-y-6">
                   {section.questions.map((question: any, idx: number) => (
-                    <div key={idx} className="border-t border-gray-200 pt-6 first:border-t-0 first:pt-0">
-                      <h3 className="text-lg font-bold text-gray-900 mb-4">{question.title}</h3>
+                    <div key={idx} className="border-t border-gray-200 pt-4 sm:pt-6 first:border-t-0 first:pt-0">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">{question.title}</h3>
 
                       {question.description && (
-                        <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                          <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono">{question.description}</pre>
+                        <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
+                          <pre className="whitespace-pre-wrap text-xs sm:text-sm text-gray-700 font-mono">{question.description}</pre>
                         </div>
                       )}
 
                       {question.code && (
                         <div className="relative">
-                          <div className="absolute top-3 right-3 bg-gray-700 text-white text-xs px-2 py-1 rounded">
+                          <div className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-gray-700 text-white text-[10px] sm:text-xs px-2 py-0.5 sm:py-1 rounded">
                             {question.language}
                           </div>
-                          <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
-                            <code className="text-sm font-mono">{question.code}</code>
+                          <pre className="bg-gray-900 text-gray-100 p-3 sm:p-4 rounded-lg overflow-x-auto">
+                            <code className="text-xs sm:text-sm font-mono">{question.code}</code>
                           </pre>
                         </div>
                       )}
@@ -944,17 +946,17 @@ CREATE INDEX idx_student_email ON Students(email);`,
         </div>
 
         {/* Action Buttons */}
-        <div className="mt-8 flex gap-4">
+        <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4">
           <Link
             href="/dashboard/interview"
-            className="flex-1 bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition text-center font-semibold"
+            className="w-full sm:flex-1 bg-blue-600 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-lg hover:bg-blue-700 transition text-center font-semibold text-sm sm:text-base flex items-center justify-center"
           >
-            <Code className="inline h-5 w-5 mr-2" />
+            <Code className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
             Start Mock Interview
           </Link>
           <Link
             href="/dashboard/company-prep"
-            className="flex-1 bg-gray-200 text-gray-700 px-6 py-4 rounded-lg hover:bg-gray-300 transition text-center font-semibold"
+            className="w-full sm:flex-1 bg-gray-200 text-gray-700 px-4 sm:px-6 py-3 sm:py-4 rounded-lg hover:bg-gray-300 transition text-center font-semibold text-sm sm:text-base flex items-center justify-center"
           >
             View Other Companies
           </Link>

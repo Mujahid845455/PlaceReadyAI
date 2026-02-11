@@ -115,8 +115,8 @@ export default function InterviewPage() {
             <button
               onClick={toggleRecording}
               className={`w-24 h-24 sm:w-32 sm:h-32 rounded-full flex items-center justify-center transition-all duration-300 ${isRecording
-                  ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-                  : 'bg-blue-600 hover:bg-blue-700'
+                ? 'bg-red-500 hover:bg-red-600 animate-pulse'
+                : 'bg-blue-600 hover:bg-blue-700'
                 }`}
             >
               {isRecording ? (
