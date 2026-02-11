@@ -17,6 +17,15 @@ function PracticePageContent() {
     setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const companies = [
+    { id: 'amazon', name: 'Amazon', logo: '🟠', questions: 50 },
+    { id: 'google', name: 'Google', logo: '🔵', questions: 45 },
+    { id: 'microsoft', name: 'Microsoft', logo: '🟦', questions: 48 },
+    { id: 'flipkart', name: 'Flipkart', logo: '🟡', questions: 42 },
+    { id: 'tcs', name: 'TCS', logo: '🔷', questions: 38 },
+    { id: 'infosys', name: 'Infosys', logo: '🟣', questions: 40 },
+  ];
+
   const companyData: Record<string, any> = {
     amazon: {
       name: 'Amazon',
@@ -839,25 +848,44 @@ CREATE INDEX idx_student_email ON Students(email);`,
                   PlaceReady AI
                 </span>
               </Link>
-              <Link href="/dashboard/company-prep" className="flex items-center text-gray-600 hover:text-blue-600 transition text-sm sm:text-base">
+              <Link href="/dashboard" className="flex items-center text-gray-600 hover:text-blue-600 transition text-sm sm:text-base">
                 <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Back to Companies</span>
+                <span className="hidden sm:inline">Back to Dashboard</span>
                 <span className="sm:hidden">Back</span>
               </Link>
             </div>
           </div>
         </nav>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Select a Company</h1>
-          <p className="text-gray-600 mb-8">Please select a company from the Company Preparation page to view interview questions.</p>
-          <Link
-            href="/dashboard/company-prep"
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition inline-flex items-center"
-          >
-            <ArrowLeft className="h-5 w-5 mr-2" />
-            Go to Company Preparation
-          </Link>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-8 sm:py-12">
+          <div className="text-center mb-10">
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Practice Mode</h1>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Select a company to view comprehensive interview questions, code solutions, and platform-specific preparation guides.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {companies.map((c) => (
+              <Link
+                key={c.id}
+                href={`/dashboard/practice?company=${c.id}`}
+                className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition text-left group"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-5xl group-hover:scale-110 transition duration-300">{c.logo}</div>
+                  <div className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-semibold">
+                    {c.questions}+ Questions
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{c.name}</h3>
+                <p className="text-sm text-gray-600 mb-4">Technical, DSA, and System Design rounds coverage.</p>
+                <div className="text-blue-600 font-semibold text-sm flex items-center">
+                  Start Practicing <ArrowLeft className="h-4 w-4 ml-1 rotate-180" />
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
     );
