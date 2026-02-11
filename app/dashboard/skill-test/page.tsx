@@ -193,45 +193,61 @@ export default function SkillTestPage() {
 
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      // 'gemini-1.5-flash-latest' often resolves 404 issues better than the alias.
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-      const prompt = `
-        You are an elite technical interviewer. Evaluate the following coding challenge submission.
-        
-        Skill: ${selectedSkill}
-        Difficulty: ${difficulty}
-        Challenge: ${starterTemplates[selectedSkill].challenge}
-        
-        User Code:
-        ${code}
-        
-        Provide a JSON response with the following format:
-        {
-          "score": number (0-100),
-          "summary": "Brief summary of the code's quality",
-          "strengths": ["list", "of", "strengths"],
-          "weaknesses": ["list", "of", "areas", "to", "improve"],
-          "suggestions": "Detailed technical advice on how to make it better",
-          "testResults": [
-            {"name": "Correctness", "passed": boolean, "feedback": "reasoning"},
-            {"name": "Efficiency", "passed": boolean, "feedback": "reasoning"},
-            {"name": "Best Practices", "passed": boolean, "feedback": "reasoning"}
-          ]
-        }
-        Do not include any other text than the JSON.
-      `;
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      const modelNames = ["gemini-3-flash", "gemini-2.0-flash-exp", "gemini-1.5-flash-latest"];
+      let lastError = null;
+      let finalResponse = null;
+
+      for (const modelName of modelNames) {
+        try {
+          console.log(`Attempting evaluation with ${modelName}...`);
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const prompt = `
+            You are an elite technical interviewer. Evaluate the following coding challenge submission.
+            
+            Skill: ${selectedSkill}
+            Difficulty: ${difficulty}
+            Challenge: ${starterTemplates[selectedSkill].challenge}
+            
+            User Code:
+            ${code}
+            
+            Provide a JSON response with the following format:
+            {
+              "score": number (0-100),
+              "summary": "Brief summary of the code's quality",
+              "strengths": ["list", "of", "strengths"],
+              "weaknesses": ["list", "of", "areas", "to", "improve"],
+              "suggestions": "Detailed technical advice on how to make it better",
+              "testResults": [
+                {"name": "Correctness", "passed": boolean, "feedback": "reasoning"},
+                {"name": "Efficiency", "passed": boolean, "feedback": "reasoning"},
+                {"name": "Best Practices", "passed": boolean, "feedback": "reasoning"}
+              ]
+            }
+            Do not include any other text than the JSON.
+          `;
+
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          finalResponse = response.text();
+          console.log(`Evaluation successful with ${modelName}`);
+          break; // Stop loop if successful
+        } catch (e) {
+          console.error(`Failed with ${modelName}:`, e);
+          lastError = e;
+        }
+      }
+
+      if (!finalResponse) throw lastError;
 
       // Clean the text if it contains markdown code blocks
-      const cleanedJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      const cleanedJson = finalResponse.replace(/```json/g, '').replace(/```/g, '').trim();
       const parsedRes = JSON.parse(cleanedJson);
       setAiResult(parsedRes);
     } catch (error) {
       console.error("Gemini AI Evaluation Error Details:", error);
-      alert("AI Evaluation failed. Please open your Browser Console (Press F12) to see the exact error message.");
+      alert("AI Evaluation failed even after fallback. Please ensure your API key is valid for Gemini 3/2/1.5 in Google AI Studio.");
     } finally {
       setIsEvaluating(false);
     }
