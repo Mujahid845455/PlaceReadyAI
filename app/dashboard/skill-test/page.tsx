@@ -404,7 +404,7 @@ export default function SkillTestPage() {
 
             {/* Monaco Code Editor */}
             <div className="bg-white rounded-xl p-6 mb-6 border border-gray-200 shadow-sm overflow-hidden">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 rounded-full bg-red-400" />
                   <div className="w-3 h-3 rounded-full bg-yellow-400" />
