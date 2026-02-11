@@ -3,9 +3,12 @@
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Shield, ArrowLeft, Code, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 
-export default function PracticePage() {
+// Force dynamic rendering to avoid prerendering errors
+export const dynamic = 'force-dynamic';
+
+function PracticePageContent() {
   const searchParams = useSearchParams();
   const company = searchParams.get('company') || '';
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
@@ -958,5 +961,21 @@ CREATE INDEX idx_student_email ON Students(email);`,
         </div>
       </div>
     </div>
+  );
+}
+
+// Wrap in Suspense to handle useSearchParams during SSR
+export default function PracticePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <PracticePageContent />
+    </Suspense>
   );
 }
