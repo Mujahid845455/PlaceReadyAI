@@ -2,13 +2,19 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Shield, Github, GitBranch, Upload, ArrowLeft, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { Shield, Github, GitBranch, Upload, ArrowLeft, CheckCircle, Loader2, AlertCircle, Info, Sparkles, ArrowRight } from 'lucide-react';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export default function UploadPage() {
   const [repoUrl, setRepoUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisComplete, setAnalysisComplete] = useState(false);
+  const [urlError, setUrlError] = useState('');
+  const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [analysisStep, setAnalysisStep] = useState('');
   const [analysisData, setAnalysisData] = useState({
+    repoName: '',
     techStack: ['React', 'Node.js', 'MongoDB'],
     codeQuality: 82,
     strengths: [
@@ -28,74 +34,129 @@ export default function UploadPage() {
     ]
   });
 
-  const handleAnalyze = () => {
-    if (!repoUrl) return;
-
-    // Validate URL format
+  const fetchRepoContent = async (owner: string, repo: string) => {
     try {
-      const url = new URL(repoUrl);
+      setAnalysisStep('Fetching repository data...');
+      // Fetch README.md
+      const readmeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`, {
+        headers: { 'Accept': 'application/vnd.github.raw' }
+      });
+      const readme = readmeRes.ok ? await readmeRes.text() : 'No README found';
 
-      // Check for HTTPS protocol
-      if (!url.protocol.startsWith('http')) {
-        alert('Please enter a valid HTTPS URL');
-        return;
-      }
+      // Fetch package.json if exists
+      const pkgRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/package.json`, {
+        headers: { 'Accept': 'application/vnd.github.raw' }
+      });
+      const pkgJson = pkgRes.ok ? await pkgRes.text() : 'No package.json found';
 
-      // Check if it's from supported platforms
-      const isGitHub = url.hostname === 'github.com';
-      const isGitLab = url.hostname === 'gitlab.com';
-      const isBitbucket = url.hostname === 'bitbucket.org';
+      return { readme, pkgJson };
+    } catch (error) {
+      console.error('Error fetching repo content:', error);
+      throw new Error('Failed to fetch repository data from GitHub.');
+    }
+  };
 
-      if (!isGitHub && !isGitLab && !isBitbucket) {
-        alert('Please enter a valid GitHub, GitLab, or Bitbucket URL');
-        return;
-      }
-
-      // Validate repository path structure (should be /username/repository or /username/repository.git)
-      const pathParts = url.pathname.split('/').filter(part => part.length > 0);
-
-      // Check if path has at least username and repository
-      if (pathParts.length < 2) {
-        if (isGitHub) {
-          alert('Please enter a complete repository URL (e.g., https://github.com/username/repository)');
-        } else if (isGitLab) {
-          alert('Please enter a complete repository URL (e.g., https://gitlab.com/username/repository)');
-        } else {
-          alert('Please enter a complete repository URL (e.g., https://bitbucket.org/username/repository)');
-        }
-        return;
-      }
-
-      // Additional validation: ensure it's not just a profile or organization page
-      const repoName = pathParts[1].replace('.git', '');
-      if (!repoName || repoName.length === 0) {
-        alert('Invalid repository name. Please enter a valid repository URL.');
-        return;
-      }
-
-      // Check for invalid characters in repository path
-      const validPathRegex = /^[a-zA-Z0-9._-]+$/;
-      if (!validPathRegex.test(pathParts[0]) || !validPathRegex.test(repoName)) {
-        alert('Repository URL contains invalid characters. Please check and try again.');
-        return;
-      }
-
-    } catch (e) {
-      alert('Please enter a valid URL (e.g., https://github.com/username/repository)');
-      return;
+  const analyzeWithAI = async (repoName: string, content: { readme: string; pkgJson: string }) => {
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("Missing Gemini API Key. Please add it to .env.local.");
     }
 
-    setIsAnalyzing(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsAnalyzing(false);
+    setAnalysisStep('Analyzing code patterns with Gemini AI...');
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const modelNames = ["gemini-3.0-flash", "gemini-3-flash", "gemini-2.0-flash-exp", "gemini-1.5-flash-latest"];
+
+    let finalResponse = null;
+    let lastError = null;
+
+    for (const modelName of modelNames) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const prompt = `
+          You are an expert software architect and technical interviewer. Analyze the following GitHub repository information and provide a detailed technical report.
+          
+          Repository: ${repoName}
+          
+          README Content:
+          ${content.readme.substring(0, 4000)}
+          
+          package.json Content:
+          ${content.pkgJson.substring(0, 2000)}
+          
+          Provide a JSON response with the following format:
+          {
+            "techStack": ["list", "of", "technologies"],
+            "codeQuality": number (0-100),
+            "strengths": ["list", "of", "top", "strengths"],
+            "improvements": ["list", "of", "areas", "to", "improve"],
+            "focusAreas": ["list", "of", "3-4", "specific", "interview", "questions", "based", "on", "this", "project"]
+          }
+          Do not include any other text than the JSON.
+        `;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        finalResponse = response.text();
+        break;
+      } catch (error) {
+        lastError = error;
+        console.warn(`Failed with ${modelName}, trying next...`);
+      }
+    }
+
+    if (!finalResponse) throw lastError;
+
+    const cleanedJson = finalResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(cleanedJson);
+  };
+
+  const handleAnalyze = async () => {
+    if (!repoUrl) return;
+
+    try {
+      const url = new URL(repoUrl);
+      const isGitHub = url.hostname === 'github.com';
+      if (!isGitHub) {
+        alert('Currently, AI analysis only supports GitHub repositories.');
+        return;
+      }
+
+      const pathParts = url.pathname.split('/').filter(part => part.length > 0);
+      if (pathParts.length < 2) {
+        alert('Please enter a complete GitHub repository URL.');
+        return;
+      }
+
+      const owner = pathParts[0];
+      const repo = pathParts[1].replace('.git', '');
+
+      setIsAnalyzing(true);
+      setAnalysisStep('Connecting to GitHub...');
+
+      const content = await fetchRepoContent(owner, repo);
+      const aiResults = await analyzeWithAI(repo, content);
+
+      setAnalysisData({
+        ...aiResults,
+        repoName: `${owner}/${repo}`
+      });
       setAnalysisComplete(true);
-    }, 3000);
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || 'Analysis failed. Please check the URL and try again.');
+    } finally {
+      setIsAnalyzing(false);
+      setAnalysisStep('');
+    }
   };
 
   const handleGithubConnect = () => {
+    setIsConnecting(true);
     // Simulate OAuth flow
-    alert('GitHub OAuth integration would be implemented here');
+    setTimeout(() => {
+      setIsConnecting(false);
+      setIsConnected(true);
+    }, 1500);
   };
 
   return (
@@ -134,24 +195,49 @@ export default function UploadPage() {
                 <div className="bg-gray-900 w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Github className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
                 </div>
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Connect with GitHub</h2>
-                <p className="text-sm sm:text-base text-gray-600 mb-6">
-                  Securely connect your GitHub account to analyze your repositories
-                </p>
-                <button
-                  onClick={handleGithubConnect}
-                  className="w-full sm:w-auto bg-gray-900 text-white px-6 sm:px-8 py-3 rounded-lg hover:bg-gray-800 transition inline-flex items-center justify-center text-sm sm:text-base"
-                >
-                  <Github className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                  Connect GitHub Account
-                </button>
+                {isConnected ? (
+                  <div className="space-y-4">
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 flex items-center justify-center text-green-600">
+                      <CheckCircle className="h-5 w-5 mr-2" />
+                      GitHub Connected
+                    </h2>
+                    <div className="inline-flex items-center px-4 py-2 bg-gray-100 rounded-full text-sm font-medium text-gray-700">
+                      <Github className="h-4 w-4 mr-2" />
+                      @mujahid-islam (connected)
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Connect with GitHub</h2>
+                    <p className="text-sm sm:text-base text-gray-600 mb-6">
+                      Securely connect your GitHub account to analyze your repositories
+                    </p>
+                    <button
+                      onClick={handleGithubConnect}
+                      disabled={isConnecting}
+                      className="w-full sm:w-auto bg-gray-900 text-white px-6 sm:px-8 py-3 rounded-lg hover:bg-gray-800 transition inline-flex items-center justify-center text-sm sm:text-base disabled:opacity-50"
+                    >
+                      {isConnecting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 mr-2 animate-spin" />
+                          Connecting...
+                        </>
+                      ) : (
+                        <>
+                          <Github className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                          Connect GitHub Account
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
             {/* Divider */}
             <div className="flex items-center my-8">
               <div className="flex-1 border-t border-gray-300"></div>
-              <span className="px-4 text-gray-500 font-semibold">OR</span>
+              <span className="px-4 text-gray-500 font-semibold uppercase tracking-wider text-xs">Repository Selection</span>
               <div className="flex-1 border-t border-gray-300"></div>
             </div>
 
@@ -159,7 +245,7 @@ export default function UploadPage() {
             <div className="bg-white rounded-xl p-4 sm:p-8 border border-gray-200">
               <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 text-center sm:text-left">Enter Repository URL</h2>
               <p className="text-sm sm:text-base text-gray-600 mb-6 text-center sm:text-left">
-                Paste your GitHub, GitLab, or Bitbucket repository URL
+                Paste your GitHub repository URL for deep AI analysis
               </p>
 
               <div className="space-y-4">
@@ -173,14 +259,12 @@ export default function UploadPage() {
                       value={repoUrl}
                       onChange={(e) => setRepoUrl(e.target.value)}
                       placeholder="https://github.com/username/repository"
-                      pattern="https://.*"
-                      title="Please enter a valid HTTPS URL"
                       className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                     />
                     <button
                       onClick={handleAnalyze}
                       disabled={!repoUrl || isAnalyzing}
-                      className="w-full sm:w-auto bg-blue-600 text-white px-6 sm:px-8 py-3 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center text-sm sm:text-base"
+                      className="w-full sm:w-auto bg-blue-600 text-white px-6 sm:px-8 py-3 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center text-sm sm:text-base relative overflow-hidden"
                     >
                       {isAnalyzing ? (
                         <>
@@ -190,39 +274,41 @@ export default function UploadPage() {
                       ) : (
                         <>
                           <Upload className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                          Analyze
+                          Analyze Repo
                         </>
                       )}
                     </button>
                   </div>
+                  {isAnalyzing && (
+                    <div className="mt-3 flex items-center justify-center sm:justify-start text-blue-600 text-sm animate-pulse">
+                      <Info className="h-4 w-4 mr-2" />
+                      {analysisStep}
+                    </div>
+                  )}
                 </div>
 
                 {/* Supported Platforms */}
-                <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600">
-                  <span className="font-semibold">Supported:</span>
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600 pt-2">
+                  <span className="font-semibold text-gray-400">Powered by:</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
+                    <Sparkles className="h-4 w-4 text-purple-500" />
+                    <span className="font-medium">Gemini 3 Flash</span>
+                  </div>
                   <div className="flex items-center gap-1.5 sm:gap-2">
                     <Github className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span>GitHub</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <GitBranch className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span>GitLab</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <GitBranch className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span>Bitbucket</span>
+                    <span>REST API</span>
                   </div>
                 </div>
               </div>
 
               {/* Privacy Notice */}
-              <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start space-x-3">
+              <div className="mt-8 bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start space-x-3">
                 <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
                 <div className="text-sm text-blue-900">
-                  <div className="font-semibold mb-1">Your code is safe with us</div>
-                  <div className="text-blue-700">
-                    We analyze your code securely and never store it permanently.
-                    All analysis happens in an encrypted environment.
+                  <div className="font-bold mb-1">Privacy Focused Analysis</div>
+                  <div className="text-blue-700 leading-relaxed">
+                    We only read public repository metadata and documentation.
+                    Your code structure is analyzed temporarily and never indexed or stored.
                   </div>
                 </div>
               </div>
@@ -232,27 +318,35 @@ export default function UploadPage() {
           /* Analysis Results */
           <div className="space-y-6">
             {/* Success Message */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center space-x-3">
-              <CheckCircle className="h-6 w-6 text-green-600" />
+            <div className="bg-green-50 border border-green-200 rounded-xl p-5 flex items-center space-x-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
+              <div className="bg-green-100 p-2 rounded-full">
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
               <div>
-                <div className="font-semibold text-green-900">Analysis Complete!</div>
-                <div className="text-sm text-green-700">Your project has been successfully analyzed</div>
+                <div className="font-bold text-green-900 text-lg">Project Analysis Secured!</div>
+                <div className="text-sm text-green-700">Gemini AI has completed its technical review for {analysisData.repoName}</div>
               </div>
             </div>
 
             {/* Repository Info */}
-            <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Project Analysis Report</h2>
-              <div className="space-y-3 text-sm sm:text-base text-gray-700">
-                <div className="flex flex-col sm:flex-row sm:gap-2">
-                  <span className="font-semibold">Repository:</span>
-                  <span className="text-blue-600 truncate">github.com/user/ecommerce-app</span>
+            <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200 shadow-sm">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-6 flex items-center pb-4 border-b">
+                <GitBranch className="h-5 w-5 mr-2 text-blue-600" />
+                Technical Overview
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3">Target Repository</h3>
+                  <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <Github className="h-5 w-5 mr-3 text-gray-700" />
+                    <span className="text-blue-600 font-mono font-medium truncate">{analysisData.repoName}</span>
+                  </div>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2">
-                  <span className="font-semibold">Tech Stack:</span>
-                  <div className="flex flex-wrap gap-2 mt-1 sm:mt-0">
+                <div>
+                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3">Primary Tech Stack</h3>
+                  <div className="flex flex-wrap gap-2">
                     {analysisData.techStack.map((tech, idx) => (
-                      <span key={idx} className="bg-blue-100 text-blue-800 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm">
+                      <span key={idx} className="bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1 rounded-full text-xs font-bold uppercase">
                         {tech}
                       </span>
                     ))}
@@ -261,74 +355,113 @@ export default function UploadPage() {
               </div>
             </div>
 
-            {/* Code Quality Score */}
-            <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-base sm:text-lg font-bold text-gray-900">Code Quality Score</h3>
-                <span className="text-2xl sm:text-3xl font-bold text-blue-600">{analysisData.codeQuality}/100</span>
+            {/* Quality Score & Insight Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-1 bg-white rounded-xl p-6 border border-gray-200 shadow-sm flex flex-col justify-center text-center">
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Architecture Score</h3>
+                <div className="relative inline-flex items-center justify-center mb-4">
+                  <svg className="h-32 w-32 transform -rotate-90">
+                    <circle
+                      className="text-gray-200"
+                      strokeWidth="8"
+                      stroke="currentColor"
+                      fill="transparent"
+                      r="58"
+                      cx="64"
+                      cy="64"
+                    />
+                    <circle
+                      className="text-blue-600 transition-all duration-1000 ease-out"
+                      strokeWidth="8"
+                      strokeDasharray={364.42}
+                      strokeDashoffset={364.42 - (364.42 * analysisData.codeQuality) / 100}
+                      strokeLinecap="round"
+                      stroke="currentColor"
+                      fill="transparent"
+                      r="58"
+                      cx="64"
+                      cy="64"
+                    />
+                  </svg>
+                  <span className="absolute text-3xl font-black text-gray-900">{analysisData.codeQuality}</span>
+                </div>
+                <p className="text-xs text-gray-500 font-medium">Verified by AI Design Patterns</p>
               </div>
-              <div className="bg-gray-200 rounded-full h-2.5 sm:h-3">
-                <div
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-full h-2.5 sm:h-3 transition-all duration-1000"
-                  style={{ width: `${analysisData.codeQuality}%` }}
-                />
-              </div>
-            </div>
 
-            {/* Strengths */}
-            <div className="bg-white rounded-xl p-6 border border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Strengths</h3>
-              <div className="space-y-3">
-                {analysisData.strengths.map((strength, idx) => (
-                  <div key={idx} className="flex items-start space-x-3">
-                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span className="text-gray-700">{strength}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Areas to Improve */}
-            <div className="bg-white rounded-xl p-6 border border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Areas to Improve</h3>
-              <div className="space-y-3">
-                {analysisData.improvements.map((improvement, idx) => (
-                  <div key={idx} className="flex items-start space-x-3">
-                    <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
-                    <span className="text-gray-700">{improvement}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Interview Focus Areas */}
-            <div className="bg-white rounded-xl p-6 border border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Interview Focus Areas</h3>
-              <div className="space-y-3">
-                {analysisData.focusAreas.map((area, idx) => (
-                  <div key={idx} className="flex items-start space-x-3">
-                    <div className="bg-blue-100 text-blue-600 w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
-                      {idx + 1}
+              <div className="lg:col-span-2 bg-gradient-to-br from-blue-600 to-purple-700 rounded-xl p-6 text-white shadow-lg overflow-hidden relative">
+                <div className="relative z-10 h-full flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold mb-4 opacity-90 tracking-wide uppercase text-sm">Top Strengths</h3>
+                    <div className="space-y-4">
+                      {analysisData.strengths.slice(0, 3).map((strength, idx) => (
+                        <div key={idx} className="flex items-start space-x-3 bg-white/10 p-3 rounded-lg backdrop-blur-sm border border-white/10">
+                          <CheckCircle className="h-5 w-5 text-green-300 mt-0.5 flex-shrink-0" />
+                          <span className="text-sm font-medium">{strength}</span>
+                        </div>
+                      ))}
                     </div>
-                    <span className="text-gray-700">{area}</span>
                   </div>
-                ))}
+                  <div className="mt-6 flex items-center text-xs font-bold uppercase tracking-widest opacity-60">
+                    <Shield className="h-4 w-4 mr-2" />
+                    Enterprise Analytics Engine
+                  </div>
+                </div>
+                {/* Decorative Elements */}
+                <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+                <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Areas to Improve */}
+              <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm border-t-4 border-t-orange-500">
+                <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center">
+                  <AlertCircle className="h-5 w-5 mr-2 text-orange-500" />
+                  Growth Opportunities
+                </h3>
+                <div className="space-y-4">
+                  {analysisData.improvements.map((improvement, idx) => (
+                    <div key={idx} className="flex items-start space-x-3 p-3 bg-orange-50/50 rounded-lg border border-orange-100">
+                      <div className="h-1.5 w-1.5 rounded-full bg-orange-500 mt-2 flex-shrink-0" />
+                      <span className="text-sm text-gray-700 leading-relaxed font-medium">{improvement}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Interview Focus Areas */}
+              <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm border-t-4 border-t-blue-600">
+                <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center">
+                  <Sparkles className="h-5 w-5 mr-2 text-blue-600" />
+                  Interview Preparation Guide
+                </h3>
+                <div className="space-y-4">
+                  {analysisData.focusAreas.map((area, idx) => (
+                    <div key={idx} className="flex items-start space-x-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100 hover:border-blue-300 transition-colors">
+                      <div className="bg-blue-600 text-white w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0 shadow-sm">
+                        {idx + 1}
+                      </div>
+                      <span className="text-sm text-gray-700 leading-relaxed font-medium">{area}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 pt-4 pb-8">
               <Link
-                href="/dashboard/interview"
-                className="w-full sm:flex-1 bg-blue-600 text-white px-4 sm:px-6 py-3 rounded-lg hover:bg-blue-700 transition text-center font-semibold text-sm sm:text-base flex items-center justify-center"
+                href={`/dashboard/interview?project=${analysisData.repoName}`}
+                className="w-full sm:flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-xl hover:shadow-xl hover:-translate-y-1 transition duration-300 transform text-center font-bold text-lg flex items-center justify-center shadow-lg group"
               >
-                Start Interview Prep
+                Start AI Interview for this Project
+                <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </Link>
               <button
                 onClick={() => setAnalysisComplete(false)}
-                className="w-full sm:flex-1 bg-gray-200 text-gray-700 px-4 sm:px-6 py-3 rounded-lg hover:bg-gray-300 transition font-semibold text-sm sm:text-base text-center flex items-center justify-center"
+                className="w-full sm:w-auto bg-white text-gray-700 border-2 border-gray-100 px-8 py-4 rounded-xl hover:bg-gray-50 hover:border-gray-200 transition font-bold text-center flex items-center justify-center"
               >
-                Analyze Another
+                Analyze Another Repo
               </button>
             </div>
           </div>

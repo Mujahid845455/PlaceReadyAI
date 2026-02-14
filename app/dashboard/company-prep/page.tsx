@@ -303,7 +303,7 @@ export default function CompanyPrepPage() {
                 Start Preparation
               </Link>
               <Link
-                href={`/dashboard/practice?company=${selectedCompany}`}
+                href="/dashboard/company-prep/questions"
                 className="w-full sm:flex-1 bg-purple-600 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-lg hover:bg-purple-700 transition font-semibold text-center text-sm sm:text-base flex items-center justify-center"
               >
                 View All Questions
