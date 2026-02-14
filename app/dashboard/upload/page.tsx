@@ -1,18 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { Shield, Github, GitBranch, Upload, ArrowLeft, CheckCircle, Loader2, AlertCircle, Info, Sparkles, ArrowRight } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Shield, Github, GitBranch, Upload, ArrowLeft, CheckCircle, Loader2, AlertCircle, Info, Sparkles, ArrowRight, Search } from 'lucide-react';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export default function UploadPage() {
+function UploadContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [repoUrl, setRepoUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisComplete, setAnalysisComplete] = useState(false);
-  const [urlError, setUrlError] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [analysisStep, setAnalysisStep] = useState('');
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [userRepos, setUserRepos] = useState<any[]>([]);
+  const [isLoadingRepos, setIsLoadingRepos] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [analysisData, setAnalysisData] = useState({
     repoName: '',
     techStack: ['React', 'Node.js', 'MongoDB'],
@@ -34,19 +40,72 @@ export default function UploadPage() {
     ]
   });
 
+  // Handle GitHub OAuth Callback
+  useEffect(() => {
+    const code = searchParams.get('code');
+    if (code && !accessToken && !isConnecting) {
+      exchangeCodeForToken(code);
+    }
+  }, [searchParams]);
+
+  const exchangeCodeForToken = async (code: string) => {
+    setIsConnecting(true);
+    try {
+      const res = await fetch('/api/github/exchange', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+
+      if (data.access_token) {
+        setAccessToken(data.access_token);
+        setIsConnected(true);
+        fetchUserRepos(data.access_token);
+        // Clean URL
+        router.replace('/dashboard/upload');
+      } else {
+        throw new Error(data.error || 'Failed to exchange code');
+      }
+    } catch (error) {
+      console.error('Token exchange failed:', error);
+      alert('GitHub connection failed. Please try again.');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const fetchUserRepos = async (token: string) => {
+    setIsLoadingRepos(true);
+    try {
+      const res = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100', {
+        headers: { Authorization: `token ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUserRepos(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch repos:', error);
+    } finally {
+      setIsLoadingRepos(false);
+    }
+  };
+
   const fetchRepoContent = async (owner: string, repo: string) => {
     try {
       setAnalysisStep('Fetching repository data...');
+      const headers: any = { 'Accept': 'application/vnd.github.raw' };
+      if (accessToken) {
+        headers['Authorization'] = `token ${accessToken}`;
+      }
+
       // Fetch README.md
-      const readmeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`, {
-        headers: { 'Accept': 'application/vnd.github.raw' }
-      });
+      const readmeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`, { headers });
       const readme = readmeRes.ok ? await readmeRes.text() : 'No README found';
 
       // Fetch package.json if exists
-      const pkgRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/package.json`, {
-        headers: { 'Accept': 'application/vnd.github.raw' }
-      });
+      const pkgRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/package.json`, { headers });
       const pkgJson = pkgRes.ok ? await pkgRes.text() : 'No package.json found';
 
       return { readme, pkgJson };
@@ -110,11 +169,12 @@ export default function UploadPage() {
     return JSON.parse(cleanedJson);
   };
 
-  const handleAnalyze = async () => {
-    if (!repoUrl) return;
+  const handleAnalyze = async (manualUrl?: string) => {
+    const targetUrl = manualUrl || repoUrl;
+    if (!targetUrl) return;
 
     try {
-      const url = new URL(repoUrl);
+      const url = new URL(targetUrl);
       const isGitHub = url.hostname === 'github.com';
       if (!isGitHub) {
         alert('Currently, AI analysis only supports GitHub repositories.');
@@ -151,13 +211,22 @@ export default function UploadPage() {
   };
 
   const handleGithubConnect = () => {
-    setIsConnecting(true);
-    // Simulate OAuth flow
-    setTimeout(() => {
-      setIsConnecting(false);
-      setIsConnected(true);
-    }, 1500);
+    const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
+    if (!clientId) {
+      alert('GitHub Client ID is not configured in .env.local');
+      return;
+    }
+    const redirectUri = window.location.origin + '/dashboard/upload';
+    const scope = 'repo';
+    const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}`;
+
+    window.location.href = authUrl;
   };
+
+  const filteredRepos = userRepos.filter(repo =>
+    repo.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -196,14 +265,66 @@ export default function UploadPage() {
                   <Github className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
                 </div>
                 {isConnected ? (
-                  <div className="space-y-4">
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 flex items-center justify-center text-green-600">
-                      <CheckCircle className="h-5 w-5 mr-2" />
-                      GitHub Connected
-                    </h2>
-                    <div className="inline-flex items-center px-4 py-2 bg-gray-100 rounded-full text-sm font-medium text-gray-700">
-                      <Github className="h-4 w-4 mr-2" />
-                      @mujahid-islam (connected)
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-green-50 rounded-xl border border-green-100">
+                      <div className="flex items-center text-green-700 font-bold">
+                        <CheckCircle className="h-5 w-5 mr-2" />
+                        GitHub Connected
+                      </div>
+                      <button
+                        onClick={() => { setIsConnected(false); setAccessToken(null); setUserRepos([]); }}
+                        className="text-xs font-bold text-gray-500 hover:text-red-500 uppercase tracking-widest"
+                      >
+                        Disconnect Account
+                      </button>
+                    </div>
+
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Search your repositories..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+                      {isLoadingRepos ? (
+                        <div className="col-span-full py-12 text-center text-gray-500">
+                          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 opacity-20" />
+                          <p className="font-medium">Loading your repositories...</p>
+                        </div>
+                      ) : filteredRepos.length > 0 ? (
+                        filteredRepos.map((repo) => (
+                          <button
+                            key={repo.id}
+                            onClick={() => handleAnalyze(repo.html_url)}
+                            disabled={isAnalyzing}
+                            className="text-left p-4 rounded-xl border border-gray-100 hover:border-blue-500 hover:bg-blue-50/50 transition-all group relative overflow-hidden"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <GitBranch className="h-4 w-4 text-gray-400 group-hover:text-blue-500" />
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                                {repo.language || 'Code'}
+                              </span>
+                            </div>
+                            <h3 className="font-bold text-gray-900 group-hover:text-blue-700 truncate">
+                              {repo.name}
+                            </h3>
+                            <p className="text-xs text-gray-500 truncate mt-1">
+                              {repo.description || 'No description available'}
+                            </p>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="col-span-full py-12 text-center text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                          <p className="font-medium">No repositories found matching your search.</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -262,7 +383,7 @@ export default function UploadPage() {
                       className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                     />
                     <button
-                      onClick={handleAnalyze}
+                      onClick={() => handleAnalyze()}
                       disabled={!repoUrl || isAnalyzing}
                       className="w-full sm:w-auto bg-blue-600 text-white px-6 sm:px-8 py-3 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center text-sm sm:text-base relative overflow-hidden"
                     >
@@ -468,5 +589,17 @@ export default function UploadPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function UploadPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="h-12 w-12 text-blue-600 animate-spin opacity-20" />
+      </div>
+    }>
+      <UploadContent />
+    </Suspense>
   );
 }
