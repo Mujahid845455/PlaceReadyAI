@@ -1,15 +1,15 @@
-'use client';
-
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
     try {
         const { code } = await request.json();
 
-        const clientId = process.env.GITHUB_CLIENT_ID;
+        // Try both non-prefixed and public prefixed IDs for flexibility
+        const clientId = process.env.GITHUB_CLIENT_ID || process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
         const clientSecret = process.env.GITHUB_CLIENT_SECRET;
 
         if (!clientId || !clientSecret) {
+            console.error('Missing credentials:', { hasClientId: !!clientId, hasSecret: !!clientSecret });
             return NextResponse.json(
                 { error: 'GitHub Client ID or Secret is not configured' },
                 { status: 500 }
