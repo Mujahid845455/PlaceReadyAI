@@ -123,13 +123,14 @@ function UploadContent() {
 
     setAnalysisStep('Analyzing code patterns with Gemini AI...');
     const genAI = new GoogleGenerativeAI(apiKey);
-    const modelNames = ["gemini-1.5-flash", "gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.0-pro"];
+    const modelNames = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-exp", "gemini-pro"];
 
     let finalResponse = null;
     let lastError = null;
 
     for (const modelName of modelNames) {
       try {
+        console.log(`Analyzing repository with Gemini model: ${modelName}`);
         const model = genAI.getGenerativeModel({ model: modelName });
         const prompt = `
           You are an expert software architect and technical interviewer. Analyze the following GitHub repository information and provide a detailed technical report.
