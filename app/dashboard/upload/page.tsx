@@ -123,7 +123,7 @@ function UploadContent() {
 
     setAnalysisStep('Analyzing code patterns with Gemini AI...');
     const genAI = new GoogleGenerativeAI(apiKey);
-    const modelNames = ["gemini-3.0-flash", "gemini-3-flash", "gemini-2.0-flash-exp", "gemini-1.5-flash-latest"];
+    const modelNames = ["gemini-1.5-flash", "gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.0-pro"];
 
     let finalResponse = null;
     let lastError = null;
